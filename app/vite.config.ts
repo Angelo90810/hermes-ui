@@ -2,6 +2,8 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+import { PWA_WORKBOX_OPTIONS } from './src/pwa/workbox-options'
 import { createProxyServer, type ProxyServer } from 'http-proxy-3'
 import crypto from 'node:crypto'
 import fs from 'fs'
@@ -314,28 +316,7 @@ export default defineConfig({
           { src: 'hermes.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       },
-      workbox: {
-        // Precache the built app shell. Workbox rewrites the manifest with the
-        // content-hashed filenames Vite emits, so nothing is hardcoded here.
-        // The `**/*.js` glob matches every emitted chunk (entry + the async
-        // vendor chunks split out in build.rolldownOptions), so the whole app
-        // - including lazily-loaded routes - stays precached and offline-ready.
-        globPatterns: ['**/*.{js,css,html,woff,woff2,ttf,otf,eot,png,jpg,jpeg,svg,gif,webp,ico}'],
-        // Code splitting is enabled (build.rolldownOptions), so the bundle is
-        // now many smaller hashed chunks rather than one ~28 MB file; the
-        // per-file cap is no longer the binding constraint. Kept generous so
-        // even the largest split vendor chunk is always precached - a chunk
-        // over the cap would be silently skipped and break offline use.
-        maximumFileSizeToCacheInBytes: 32 * 1024 * 1024,
-        // Serve index.html for real navigations so deep hash routes and hard
-        // refreshes work offline...
-        navigateFallback: 'index.html',
-        // ...but NEVER hijack the gateway: /api (REST + the /api/ws upgrade),
-        // /auth, and /login must always hit the network, not the SW cache.
-        navigateFallbackDenylist: [/^\/api/, /^\/auth/, /^\/login/]
-        // No runtimeCaching: there are no rules that could match /api, so the
-        // SW never caches or intercepts backend traffic.
-      },
+      workbox: PWA_WORKBOX_OPTIONS,
       devOptions: {
         // Keep the SW off in dev so it can't shadow the Vite /api proxy or
         // serve stale assets while iterating.
