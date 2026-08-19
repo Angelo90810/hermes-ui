@@ -421,7 +421,67 @@ function downloadBlob(blob: Blob, filename: string): void {
  */
 type WebBridge = Omit<Window['hermesDesktop'], 'terminal' | 'git' | 'zoom'>
 
+/**
+ * Chromium can resolve Clipboard API writes without updating the system
+ * clipboard in installed Wayland web apps. The user-gesture selection path is
+ * older, but is reliable there and remains scoped to the browser bridge.
+ *
+ * The temporary textarea steals focus and replaces the document selection, so
+ * both are captured up front and restored afterwards - the Clipboard API path
+ * never disturbed either, and callers (a user mid-selection, the composer's
+ * caret-based inline-ref insertion) must not observe a difference.
+ */
+export function copyTextWithSelection(text: string): boolean {
+  const previousActive = document.activeElement
+  const selection = document.getSelection()
+  const previousRanges: Range[] = []
+
+  if (selection) {
+    for (let index = 0; index < selection.rangeCount; index += 1) {
+      previousRanges.push(selection.getRangeAt(index).cloneRange())
+    }
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.dataset.hermesClipboardFallback = ''
+  textarea.value = text
+  textarea.setAttribute('aria-hidden', 'true')
+  textarea.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
+  document.body.append(textarea)
+
+  try {
+    textarea.select()
+
+    return document.execCommand('copy')
+  } catch {
+    return false
+  } finally {
+    textarea.remove()
+
+    if (selection) {
+      selection.removeAllRanges()
+
+      for (const range of previousRanges) {
+        selection.addRange(range)
+      }
+    }
+
+    if (previousActive instanceof HTMLElement && previousActive.isConnected) {
+      previousActive.focus({ preventScroll: true })
+    }
+  }
+}
+
 export function createWebBridge(): Window['hermesDesktop'] {
+  // Captured BEFORE installClipboardShim() rewrites navigator.clipboard.writeText
+  // to point back at this bridge (install.ts runs first, main.tsx installs the
+  // shim later). Falling back through the shimmed method would re-enter
+  // writeClipboard forever (writeClipboard -> shim -> writeClipboard), recursing
+  // to stack exhaustion with a textarea created and destroyed on every frame.
+  const nativeClipboardWriteText = navigator.clipboard?.writeText
+    ? navigator.clipboard.writeText.bind(navigator.clipboard)
+    : undefined
+
   const bridge: WebBridge = {
     getConnection: async profile => connection(profile),
     revalidateConnection: async () => ({ ok: true, rebuilt: false }),
@@ -569,8 +629,16 @@ export function createWebBridge(): Window['hermesDesktop'] {
     },
     selectPaths: async () => [],
     writeClipboard: async text => {
+      if (copyTextWithSelection(text)) {
+        return true
+      }
+
+      if (!nativeClipboardWriteText) {
+        return false
+      }
+
       try {
-        await navigator.clipboard.writeText(text)
+        await nativeClipboardWriteText(text)
 
         return true
       } catch {
