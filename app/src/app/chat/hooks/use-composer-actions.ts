@@ -313,6 +313,19 @@ const attachToMain = (attachment: ComposerAttachment) => {
   requestComposerFocus('main')
 }
 
+/**
+ * crypto.randomUUID only exists in secure contexts (https / localhost), and
+ * hermes-ui is also opened over plain-http LAN or tailscale origins (the
+ * README's gateway whitelist documents exactly that). An unguarded call there
+ * throws outside attachLocalFile's try/catch and silently breaks every
+ * paste/drop/picker attach. Same guarded pattern as web-bridge/gateways
+ * `newId()` and right-sidebar/terminal `terminals.ts`; uniqueness only needs
+ * to hold within this tab's composer.
+ */
+function uniqueAttachmentToken(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+}
+
 export function useComposerActions({ activeSessionId, currentCwd, requestGateway }: ComposerActionsOptions) {
   const { t } = useI18n()
   const copy = t.desktop
@@ -381,7 +394,7 @@ export function useComposerActions({ activeSessionId, currentCwd, requestGateway
       // as the composer key makes each new paste replace the preceding one.
       // Keep the filename for display/upload but always give the local payload a
       // distinct identity.
-      const id = attachmentId(isImage ? 'image' : 'file', `${filename}:${crypto.randomUUID()}`)
+      const id = attachmentId(isImage ? 'image' : 'file', `${filename}:${uniqueAttachmentToken()}`)
 
       // `path` is set to the filename so submit routes this through the upload
       // pipeline (a pathless attachment is skipped); the bytes ride on

@@ -65,6 +65,35 @@ describe('browser-local image attachments', () => {
     expect($composerAttachments.get().map(attachment => attachment.label)).toEqual(['image.png', 'image.png', 'image.png'])
     expect(new Set($composerAttachments.get().map(attachment => attachment.id)).size).toBe(3)
   })
+
+  it('still attaches with unique identities when crypto.randomUUID is unavailable (plain-http origins)', async () => {
+    // Simulate an insecure context, where the platform does not define
+    // crypto.randomUUID at all (shadow the prototype method, restore after).
+    Object.defineProperty(globalThis.crypto, 'randomUUID', { configurable: true, value: undefined })
+
+    try {
+      let actions: ReturnType<typeof useComposerActions> | undefined
+
+      render(
+        createElement(
+          I18nProvider,
+          {
+            configClient: { getConfig: async () => ({}), saveConfig: async () => ({ ok: true }) },
+            children: createElement(ComposerActionsHarness, { onReady: next => (actions = next) })
+          }
+        )
+      )
+
+      await waitFor(() => expect(actions).toBeDefined())
+      await expect(actions!.attachImageBlob(new File(['first'], 'image.png', { type: 'image/png' }))).resolves.toBe(true)
+      await expect(actions!.attachImageBlob(new File(['second'], 'image.png', { type: 'image/png' }))).resolves.toBe(true)
+
+      await waitFor(() => expect($composerAttachments.get()).toHaveLength(2))
+      expect(new Set($composerAttachments.get().map(attachment => attachment.id)).size).toBe(2)
+    } finally {
+      delete (globalThis.crypto as { randomUUID?: unknown }).randomUUID
+    }
+  })
 })
 
 describe('partitionDroppedFiles', () => {
