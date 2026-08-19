@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { preprocessMarkdown } from '@/lib/markdown-preprocess'
+import { tailBoundedRemend } from '@/lib/remend-tail'
 
 describe('preprocessMarkdown', () => {
   it('strips inline accidental triple-backtick starts', () => {
@@ -68,6 +69,111 @@ describe('preprocessMarkdown', () => {
 
     expect(output).toContain('```ts')
     expect(output).toContain('const value = 1;')
+  })
+
+  it('keeps a closed text fence whose lines do not look like source code', () => {
+    const input = [
+      '```text',
+      'memory_midnight_pass.service',
+      'memory_weekly_pass.service',
+      'memory_doctor.service',
+      'memory_session_backlog.service',
+      'memory_vault_bridge_capture.service',
+      'ops-monitor-memory-daily.service',
+      '```'
+    ].join('\n')
+
+    expect(preprocessMarkdown(input)).toBe(input)
+  })
+
+  it('keeps a named text fence while its closing fence is still streaming', () => {
+    const body = [
+      '```text',
+      'memory_midnight_pass.service',
+      'memory_weekly_pass.service',
+      'memory_doctor.service',
+      'memory_session_backlog.service',
+      'memory_vault_bridge_capture.service',
+      'ops-monitor-memory-daily.service'
+    ].join('\n')
+
+    expect(preprocessMarkdown(body)).toBe(body)
+    expect(preprocessMarkdown(`${body}\n\`\`\``)).toBe(`${body}\n\`\`\``)
+    expect(tailBoundedRemend(preprocessMarkdown(body)).startsWith('```text')).toBe(true)
+  })
+
+  it('keeps a named text fence that starts mid-message while streaming', () => {
+    const input = [
+      'Here are the services:',
+      '',
+      '```text',
+      'memory_midnight_pass.service',
+      'memory_weekly_pass.service'
+    ].join('\n')
+
+    const output = preprocessMarkdown(input)
+
+    expect(output).toContain('```text')
+    expect(output).toContain('Here are the services:')
+    expect(output).toContain('memory_weekly_pass.service')
+  })
+
+  it('does not duplicate content when a dangling named fence sits inside a tilde fence', () => {
+    const input = [
+      '~~~',
+      '```text',
+      'line one prose here.',
+      'line two prose here.',
+      'line three prose here.',
+      '~~~',
+      'trailing prose'
+    ].join('\n')
+
+    const output = preprocessMarkdown(input)
+
+    expect(output.split('line one prose here.').length - 1).toBe(1)
+    expect(output.split('line three prose here.').length - 1).toBe(1)
+    expect(output).toContain('trailing prose')
+  })
+
+  it('preserves the info-line text of a closed prose fence instead of truncating it to a language tag', () => {
+    const input = [
+      '```Heads up - a bunny got added',
+      '- Pure white (`#ffffff`)',
+      '- Ambient dropped to 0.18',
+      '```'
+    ].join('\n')
+
+    const output = preprocessMarkdown(input)
+
+    expect(output).toContain('Heads up - a bunny got added')
+    expect(output).not.toContain('```heads')
+    expect(output).toContain('- Pure white (`#ffffff`)')
+  })
+
+  it('demotes a closed unlabelled prose fence so streaming and closed states match', () => {
+    const input = ['```', '- Pure white (`#ffffff`)', '- Ambient dropped to 0.18', '```'].join('\n')
+
+    const output = preprocessMarkdown(input)
+
+    expect(output).not.toContain('```')
+    expect(output).toContain('- Pure white (`#ffffff`)')
+  })
+
+  it('demotes a markdown-wrapped prose reply without leaving a stray language token', () => {
+    const input = [
+      '```markdown',
+      'Here is the summary of the work.',
+      'The refactor is complete now.',
+      'All tests pass on this branch.',
+      '```'
+    ].join('\n')
+
+    const output = preprocessMarkdown(input)
+
+    expect(output).not.toContain('```')
+    expect(output).not.toMatch(/^markdown$/m)
+    expect(output).toContain('Here is the summary of the work.')
   })
 
   it('keeps dangling real code fences during streaming', () => {

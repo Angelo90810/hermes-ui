@@ -6,7 +6,13 @@ const PREVIEW_MARKER_RE = /\[Preview:[^\]]+\]\(#preview[:/][^)]+\)/gi
 
 const FENCE_LINE_RE = /^([ \t]*)(`{3,}|~{3,})([^\n]*)$/
 const EMPTY_FENCE_BLOCK_RE = /(^|\n)[ \t]*(?:`{3,}|~{3,})[^\n]*\n[ \t]*(?:`{3,}|~{3,})[ \t]*(?=\n|$)/g
-const CODE_FENCE_SPLIT_RE = /((?:```|~~~)[\s\S]*?(?:```|~~~))/g
+// Splits a document into prose and fence segments for the final prose-only
+// transforms. The second alternative captures a TRAILING unclosed fence (a
+// streaming code block whose close hasn't arrived): without it, a mid-message
+// streaming fence lands inside a prose segment and normalizeVisibleProse
+// strips its opening backticks, undoing the named-fence protection upstream.
+// Anchored to a line start so a stray mid-line marker can't swallow the tail.
+const CODE_FENCE_SPLIT_RE = /((?:```|~~~)[\s\S]*?(?:```|~~~)|(?<=^|\n)(?:```|~~~)[\s\S]*$)/g
 const INLINE_CODE_SPLIT_RE = /(`[^`\n]+`)/g
 // Bare-URL autolink matcher. The character classes EXCLUDE `*` so a URL that
 // abuts markdown emphasis with no separating space (e.g. `**label: https://x**`,
@@ -79,7 +85,7 @@ function scrubBacktickNoise(text: string): string {
     const info = match[3] || ''
     const body = match[4] || ''
 
-    if (!hasCloseFenceLine(body, marker) && sanitizeLanguageTag(info) && !isLikelyProseFence(info, body)) {
+    if (!hasCloseFenceLine(body, marker) && sanitizeLanguageTag(info)) {
       protectedRanges.push({ end: text.length, start })
 
       break
@@ -93,8 +99,18 @@ function scrubBacktickNoise(text: string): string {
   let cursor = 0
 
   for (const range of protectedRanges) {
-    out += text.slice(cursor, range.start).replace(fenceNoiseRe, '')
-    out += text.slice(range.start, range.end)
+    // Ranges can overlap: a protected dangling fence may START inside a
+    // protected balanced block (e.g. a ```lang opener inside a ~~~ fence).
+    // Clamp to the cursor so overlapped text is emitted exactly once -
+    // re-slicing from range.start would duplicate everything in between.
+    if (range.end <= cursor) {
+      continue
+    }
+
+    const start = Math.max(range.start, cursor)
+
+    out += text.slice(cursor, start).replace(fenceNoiseRe, '')
+    out += text.slice(start, range.end)
     cursor = range.end
   }
 
@@ -233,6 +249,10 @@ function normalizeFenceBlocks(text: string): string {
     const closeIndex = findClosingFence(sourceLines, index, marker)
     const bodyLines = sourceLines.slice(index + 1, closeIndex === -1 ? sourceLines.length : closeIndex)
     const body = bodyLines.join('\n')
+    // When a fence demotes to prose, a bare recognized language token carries
+    // no content and is dropped; anything else on the info line (a prose
+    // sentence masquerading as fence info) IS content and must be preserved.
+    const proseInfo = infoRaw === languageToken && language ? '' : infoRaw
 
     if (closeIndex !== -1 && !body.trim()) {
       index = closeIndex + 1
@@ -261,7 +281,7 @@ function normalizeFenceBlocks(text: string): string {
       }
 
       if (isLikelyProseFence(infoRaw, body)) {
-        pushProseFence(out, indent, infoRaw, bodyLines)
+        pushProseFence(out, indent, proseInfo, bodyLines)
       } else if (isMathFence(language)) {
         // Streaming math fence — rewrite the language tag to "math".
         // remark-math + rehype-katex pick up ```math fenced blocks via
@@ -279,8 +299,15 @@ function normalizeFenceBlocks(text: string): string {
       break
     }
 
+    // Closed-fence prose demotion. isLikelyProseFence never fires for a bare
+    // recognized language tag (```text, ```diff, ```ts - explicit author
+    // intent), only for unlabelled fences, the md/markdown wrap artifact, and
+    // info lines that are really prose. Demoting here (not at render time)
+    // keeps the body flowing through the markdown renderer - bullets, bold and
+    // inline code render properly - and keeps streaming and closed states of
+    // the same fence looking identical.
     if (isLikelyProseFence(infoRaw, body)) {
-      pushProseFence(out, indent, infoRaw, bodyLines)
+      pushProseFence(out, indent, proseInfo, bodyLines)
       index = closeIndex + 1
 
       continue
