@@ -56,6 +56,17 @@ describe('isLikelyProseCodeBlock', () => {
     ).toBe(false)
   })
 
+  it('still demotes a markdown-labelled prose wrap (the whole-reply fence artifact)', () => {
+    expect(
+      isLikelyProseCodeBlock(
+        'markdown',
+        ['Here is the summary of the work.', 'The refactor is complete now.', 'All tests pass on this branch.'].join(
+          '\n'
+        )
+      )
+    ).toBe(true)
+  })
+
   it('still demotes an unlabelled multi-line prose fence', () => {
     expect(
       isLikelyProseCodeBlock(
