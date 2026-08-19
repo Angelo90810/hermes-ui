@@ -1,8 +1,13 @@
+// Plugin-system boot (import-time side effect): bundled plugins register
+// their contributions before the first render — see app/contrib/boot.ts.
+import '@/app/contrib/boot'
+
 import { useStore } from '@nanostores/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 
+import { contributedPaneWidth, ContributedRightPaneBody, useWorkspaceRightPanes } from '@/app/contrib/pane-host'
 import { BootFailureOverlay } from '@/components/boot-failure-overlay'
 import { DesktopInstallOverlay } from '@/components/desktop-install-overlay'
 import { GatewayConnectingOverlay } from '@/components/gateway-connecting-overlay'
@@ -1207,6 +1212,25 @@ export function DesktopController() {
   // full-width row beneath them rather than cramming in one more skinny column.
   const terminalAsRow = terminalSidebarOpen && railColumnOpen
 
+  // Contributed right-edge panes (`area: 'panes'`, dock workspace/right) —
+  // e.g. Bot Mode's Cronjobs tile. Registered/unregistered live by plugins, so
+  // this list re-renders on registry mutations. The <Pane> wrappers must be
+  // direct PaneShell children (see pane-host), hence the inline array.
+  const contributedRightPanes = useWorkspaceRightPanes().map(pane => (
+    <Pane
+      disabled={!chatOpen}
+      divider
+      id={`contrib:${pane.id}`}
+      key={`contrib:${pane.id}`}
+      minWidth="200px"
+      resizable
+      side={railSide}
+      width={contributedPaneWidth(pane)}
+    >
+      <ContributedRightPaneBody pane={pane} />
+    </Pane>
+  ))
+
   const previewPane = (
     <Pane
       disabled={!chatOpen || (!previewTarget && !filePreviewTarget)}
@@ -1379,6 +1403,7 @@ export function DesktopController() {
         adjacent to the chat.
       */}
       {panesFlipped ? fileBrowserPane : terminalPane}
+      {contributedRightPanes}
       {previewPane}
       {reviewPane}
       {panesFlipped ? terminalPane : fileBrowserPane}

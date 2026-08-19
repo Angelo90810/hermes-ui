@@ -195,6 +195,51 @@ function profileScoped(): { profile?: string } {
   return _apiProfile ? { profile: _apiProfile } : {}
 }
 
+// ── Plugin REST door (ported from upstream apps/desktop/src/hermes.ts) ──────
+// Web port note: upstream also supports a single-file multipart `upload`
+// option; the web bridge's HermesApiRequest has no upload transport yet, so
+// that option lands with the attachment-upload port.
+export interface PluginRestOptions {
+  method?: string
+  body?: unknown
+  timeoutMs?: number
+}
+
+// Normalize `path` to a leading-slash suffix relative to `/api/plugins/<id>`.
+// The namespace is the boundary — reject `..` so a relative segment can't
+// normalize out into another plugin's API or a core route. Check the path
+// portion only (before any query/hash).
+function pluginPathSuffix(caller: string, path: string): string {
+  const suffix = path.startsWith('/') ? path : `/${path}`
+
+  if (suffix.split(/[?#]/, 1)[0].split('/').includes('..')) {
+    throw new Error(`${caller}: illegal path traversal in "${path}"`)
+  }
+
+  return suffix
+}
+
+/** The plugin REST door. Every call is scoped BY CONSTRUCTION to the plugin's
+ *  own backend namespace — `path` is relative to `/api/plugins/<pluginId>`
+ *  ('/board' → `/api/plugins/kanban/board`), so a plugin can't address another
+ *  plugin's API or a core route through it. Profile-aware like every other
+ *  REST call in this module. */
+export async function pluginRest<T>(pluginId: string, path: string, opts: PluginRestOptions = {}): Promise<T> {
+  if (!window.hermesDesktop?.api) {
+    throw new Error('Hermes bridge unavailable')
+  }
+
+  const suffix = pluginPathSuffix('pluginRest', path)
+
+  return window.hermesDesktop.api<T>({
+    path: `/api/plugins/${pluginId}${suffix}`,
+    method: opts.method,
+    body: opts.body,
+    timeoutMs: opts.timeoutMs,
+    ...profileScoped()
+  })
+}
+
 export async function listSessions(
   limit = 40,
   minMessages = 0,

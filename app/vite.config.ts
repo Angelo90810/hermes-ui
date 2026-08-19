@@ -1,4 +1,6 @@
+/// <reference types="vitest/config" />
 import { defineConfig, type Plugin } from 'vite'
+import { configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -282,6 +284,12 @@ function hermesDynamicProxy(): Plugin {
 
 export default defineConfig({
   base: './',
+  // Bundled-plugin suites (src/plugins/*/tests) are plain `node:test` files
+  // adopted verbatim from upstream — they run via `npm run test:plugins`, not
+  // vitest, so exclude them from vitest's default glob.
+  test: {
+    exclude: [...configDefaults.exclude, 'src/plugins/*/tests/**']
+  },
   // Per-build id, read by the React Query persistence layer as a cache buster so
   // a redeploy (or dev restart) drops any persisted query blob whose data shape
   // may have changed. Computed once at config load.
@@ -379,6 +387,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@hermes/plugin-sdk': path.resolve(__dirname, './src/sdk/index.ts'),
       '@hermes/shared': path.resolve(__dirname, '../shared/src')
     },
     dedupe: ['react', 'react-dom']

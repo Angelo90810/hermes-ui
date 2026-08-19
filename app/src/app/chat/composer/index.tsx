@@ -1,6 +1,6 @@
 import { ComposerPrimitive } from '@assistant-ui/react'
 import { useStore } from '@nanostores/react'
-import { type ClipboardEvent, type FormEvent, type KeyboardEvent, useEffect, useRef } from 'react'
+import { type ClipboardEvent, type FormEvent, type KeyboardEvent, useCallback, useEffect, useRef } from 'react'
 
 import { composerFill, composerSurfaceGlass } from '@/components/chat/composer-dock'
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,7 @@ import { useTheme } from '@/themes'
 import { AttachmentList } from './attachments'
 import { COMPOSER_FADE_BACKGROUND, type QueueEditState, slashArgStage } from './composer-utils'
 import { ContextMenu } from './context-menu'
+import { runComposerMiddleware } from './contrib'
 import { ComposerControls } from './controls'
 import { COMPOSER_DROP_ACTIVE_CLASS, COMPOSER_DROP_FADE_CLASS } from './drop-affordance'
 import { markActiveComposer } from './focus'
@@ -79,9 +80,28 @@ export function ChatBar({
   onPickImages,
   onRemoveAttachment,
   onSteer,
-  onSubmit,
+  onSubmit: onSubmitProp,
   onTranscribeAudio
 }: ChatBarProps) {
+  // Contribution middleware around the submit door (ported from upstream):
+  // plugins may rewrite the outgoing draft or cancel the send. Wrapped HERE so
+  // every send path below (direct send, queue drain, external submit request)
+  // runs the chain; a cancel reports `false` so the submit engine restores the
+  // draft instead of dropping it. With no contributions registered this is an
+  // exact pass-through.
+  const onSubmit = useCallback<ChatBarProps['onSubmit']>(
+    async (value, options) => {
+      const draft = await runComposerMiddleware({ text: value, attachments: options?.attachments })
+
+      if (!draft) {
+        return false
+      }
+
+      return onSubmitProp(draft.text, { ...options, attachments: draft.attachments })
+    },
+    [onSubmitProp]
+  )
+
   const attachments = useStore($composerAttachments)
   const scrolledUp = useStore($threadScrolledUp)
   const autoSpeak = useStore($autoSpeakReplies)
