@@ -2,6 +2,8 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+import { PWA_WORKBOX_OPTIONS } from './src/pwa/workbox-options'
 import { createProxyServer, type ProxyServer } from 'http-proxy-3'
 import crypto from 'node:crypto'
 import fs from 'fs'
@@ -276,16 +278,6 @@ function hermesDynamicProxy(): Plugin {
       })
     }
   }
-}
-
-// The dashboard injects a short-lived session token into index.html at request
-// time. Caching that HTML shell in the service worker would replay a token from
-// before a dashboard restart, so Workbox must only precache static assets.
-export const PWA_WORKBOX_OPTIONS = {
-  globPatterns: ['**/*.{js,css,html,woff,woff2,ttf,otf,eot,png,jpg,jpeg,svg,gif,webp,ico}'],
-  globIgnores: ['**/index.html'],
-  maximumFileSizeToCacheInBytes: 32 * 1024 * 1024,
-  navigateFallback: null
 }
 
 export default defineConfig({
