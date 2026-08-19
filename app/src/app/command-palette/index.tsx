@@ -81,6 +81,7 @@ import { FIELD_LABELS, SECTIONS } from '../settings/constants'
 import { fieldCopyForSchemaKey } from '../settings/field-copy'
 import { prettyName } from '../settings/helpers'
 
+import { usePaletteContributions } from './contrib'
 import { MarketplaceThemePage } from './marketplace-theme-page'
 import { PetInlineToggle, PetPalettePage } from './pet-palette-page'
 
@@ -291,6 +292,7 @@ function themeSupportsMode(name: string, target: 'light' | 'dark'): boolean {
 
 export function CommandPalette() {
   const { t } = useI18n()
+  const contributedItems = usePaletteContributions()
   const open = useStore($commandPaletteOpen)
   const pendingPage = useStore($commandPalettePage)
   const bindings = useStore($bindings)
@@ -466,6 +468,24 @@ export function CommandPalette() {
         ]
       },
       ...branchGroup,
+      // Registry-contributed rows (core features + plugins) — one group,
+      // omitted while nothing contributes.
+      ...(contributedItems.length > 0
+        ? [
+            {
+              heading: cc.commands,
+              items: contributedItems.map(item => ({
+                action: item.action,
+                icon: item.icon ?? Zap,
+                id: item.key,
+                keepOpen: item.keepOpen,
+                keywords: item.keywords,
+                label: item.label,
+                run: item.run
+              }))
+            }
+          ]
+        : []),
       {
         heading: cc.commandCenter,
         items: [
@@ -562,7 +582,7 @@ export function CommandPalette() {
         ]
       }
     ]
-  }, [go, settingsSectionLabel, t, worktrees])
+  }, [contributedItems, go, settingsSectionLabel, t, worktrees])
 
   // The long, granular lists (settings fields, API keys, MCP servers, archived
   // chats) only surface once the user types — otherwise they'd bury the

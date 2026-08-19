@@ -4,6 +4,7 @@ import { useStore } from '@nanostores/react'
 import type * as React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { SidebarContributedPane, SidebarPaneStrip, useActiveSidebarPane } from '@/app/contrib/pane-host'
 import { PlatformAvatar } from '@/app/messaging/platform-icon'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
@@ -1032,6 +1033,12 @@ export function ChatSidebar({
       })
     )
 
+  // Contributed sidebar panes (`area: 'panes'`, dock sessions/center — e.g.
+  // Bot Mode's Bots roster). When one exists, the sidebar grows a
+  // SESSIONS | <PANE> tab strip; the active contributed pane replaces the
+  // sessions body wholesale (it brings its own chrome, search, and footer).
+  const activeContributedPane = useActiveSidebarPane()
+
   return (
     <Sidebar
       className={cn(
@@ -1047,7 +1054,22 @@ export function ChatSidebar({
       )}
       collapsible="none"
     >
-      <SidebarContent className="gap-0 overflow-hidden bg-transparent px-2.5">
+      <div className="shrink-0 pt-(--titlebar-height)">
+        <SidebarPaneStrip sessionsLabel="Sessions" />
+      </div>
+      {activeContributedPane ? <SidebarContributedPane pane={activeContributedPane} /> : null}
+      <SidebarContent
+        className={cn(
+          'gap-0 overflow-hidden bg-transparent px-2.5',
+          // The strip already spent the titlebar offset; collapse the nav
+          // group's own titlebar padding (it reads this var) so the sessions
+          // body doesn't double-indent. Hidden entirely while a contributed
+          // pane holds the tab — kept mounted so session polling, search
+          // state, and scroll position survive a tab flip.
+          activeContributedPane && 'hidden',
+          !activeContributedPane && '[--titlebar-height:0px]'
+        )}
+      >
         <SidebarGroup className="shrink-0 p-0 pb-2 pt-[calc(var(--titlebar-height)+0.375rem)]">
           <SidebarGroupContent>
             <SidebarMenu className="gap-px">
