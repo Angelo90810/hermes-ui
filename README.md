@@ -110,6 +110,11 @@ A short walkthrough of the UI running against a Hermes gateway - login, chat, th
 
 https://github.com/user-attachments/assets/9d45bc37-b77a-4278-91cd-3c91af837689
 
+<img width="3012" height="1660" alt="clipboard_2026-08-19_12-01" src="https://github.com/user-attachments/assets/2fa467f4-f0cf-49a8-8de6-251ff76b243d" />
+
+<img width="1912" height="906" alt="image" src="https://github.com/user-attachments/assets/d8b759ff-692c-4d5c-9194-d860332f093d" />
+<img width="1912" height="906" alt="image" src="https://github.com/user-attachments/assets/afb90d2b-e592-4acc-ba20-6c7e93657dd9" />
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Built With
