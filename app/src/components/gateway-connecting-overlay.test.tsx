@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { $desktopBoot } from '@/store/boot'
@@ -70,10 +71,10 @@ describe('connecting overlay vs recovery surface', () => {
     setGatewayState('error')
 
     render(
-      <>
+      <MemoryRouter>
         <GatewayConnectingOverlay />
         <BootFailureOverlay />
-      </>
+      </MemoryRouter>
     )
 
     expect(isRecoveryShown()).toBe(true)
@@ -86,10 +87,10 @@ describe('connecting overlay vs recovery surface', () => {
     setGatewayState('open')
 
     const { rerender } = render(
-      <>
+      <MemoryRouter>
         <GatewayConnectingOverlay />
         <BootFailureOverlay />
-      </>
+      </MemoryRouter>
     )
 
     expect(isConnectingShown()).toBe(false)
@@ -99,10 +100,10 @@ describe('connecting overlay vs recovery surface', () => {
     //    scheduleReconnect() — boot.error stays NULL.
     setGatewayState('closed')
     rerender(
-      <>
+      <MemoryRouter>
         <GatewayConnectingOverlay />
         <BootFailureOverlay />
-      </>
+      </MemoryRouter>
     )
 
     // The initial-boot connecting overlay stays out of the way, so settings and
@@ -115,10 +116,10 @@ describe('connecting overlay vs recovery surface', () => {
     //    remains usable instead of modal-blocked.
     setGatewayState('error')
     rerender(
-      <>
+      <MemoryRouter>
         <GatewayConnectingOverlay />
         <BootFailureOverlay />
-      </>
+      </MemoryRouter>
     )
     expect($desktopBoot.get().error).toBeNull()
     expect(isConnectingShown()).toBe(false)
@@ -138,15 +139,15 @@ describe('connecting overlay vs recovery surface', () => {
     })
 
     render(
-      <>
+      <MemoryRouter>
         <GatewayConnectingOverlay />
         <BootFailureOverlay />
-      </>
+      </MemoryRouter>
     )
 
     // Escape hatch is now reachable; the connecting overlay bows out.
     expect(isRecoveryShown()).toBe(true)
-    expect(screen.getByText(/use local gateway/i)).toBeTruthy()
+    expect(screen.getByText(/manage gateways/i)).toBeTruthy()
     expect(isConnectingShown()).toBe(false)
   })
 })
