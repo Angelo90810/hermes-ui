@@ -171,7 +171,7 @@ cd hermes-ui
 ```
 
 - `bin/dev` proxies to `http://127.0.0.1:9119` by default; override with `HERMES_GATEWAY_URL=http://host:port ./bin/dev`.
-- `bin/prod` passes any extra arguments through to `hermes serve`, for example `./bin/prod --port 9200`.
+- `bin/prod` passes any extra arguments through to `hermes dashboard`, for example `./bin/prod --port 9200`.
 
 > [!TIP]
 > For gateways using OAuth, prefer `bin/prod`: the login redirect must return to the same origin the app was served from, which the gateway-hosted path guarantees.
@@ -210,7 +210,7 @@ bun run build
 Then start the gateway with the built bundle:
 
 ```sh
-HERMES_WEB_DIST="$(pwd)/dist" hermes serve
+HERMES_WEB_DIST="$(pwd)/dist" hermes dashboard --no-open
 ```
 
 Or use the helper, which resolves the absolute path and exports the variable for you:
@@ -337,7 +337,7 @@ The gateway's `mount_spa()` serves a static directory selected by the `HERMES_WE
 - Before serving `index.html`, the gateway injects the session token as `window.__HERMES_SESSION_TOKEN__` in a `<script>` tag placed just before `</head>`, so the SPA can authenticate against protected endpoints in loopback/token mode.
 
 > [!NOTE]
-> `hermes serve` respects `HERMES_SERVE_HEADLESS=1` and will refuse to serve the SPA when it is set; leave it unset to host the UI.
+> Current Hermes releases reserve `hermes serve` for the headless backend and will refuse to serve the SPA. The production helper uses `hermes dashboard --no-open`; do not set `HERMES_SERVE_HEADLESS=1` when hosting the UI.
 
 The Vite build uses `base: './'` (`app/vite.config.ts`), so asset URLs in the built `index.html` are relative (for example `./assets/index-*.js`), which resolves correctly when the bundle is served at the domain root.
 
@@ -351,7 +351,7 @@ The Vite build uses `base: './'` (`app/vite.config.ts`), so asset URLs in the bu
 | Blank page or 404 on assets | `HERMES_WEB_DIST` is wrong or not absolute. It must be the absolute path to `app/dist`, and that directory must contain both `index.html` and an `assets/` subdirectory. |
 | WebSocket closes with code `4403` | The app is not same-origin with the gateway. Serve it via option A, B, or C so the browser origin matches the gateway. |
 | Cross-origin fetch failures (CORS errors, missing cookies) | Same root cause as the `4403` case - the UI is served from an origin the gateway does not trust. Make it same-origin. |
-| `hermes serve` returns 404 JSON for every page | Either the bundle was not found at `HERMES_WEB_DIST`, or `HERMES_SERVE_HEADLESS=1` is set (which disables the SPA on purpose). |
+| `hermes serve` returns 404 JSON for every page | This is expected for the current headless `serve` command. Use `hermes dashboard --no-open` with `HERMES_WEB_DIST` (the `bin/prod` helper does this), or check that the bundle was built correctly. |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

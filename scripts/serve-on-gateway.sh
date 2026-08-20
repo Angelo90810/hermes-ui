@@ -2,17 +2,18 @@
 #
 # serve-on-gateway.sh
 #
-# Start the Hermes gateway with the built hermes-ui bundle so the UI is
-# served SAME-ORIGIN with the gateway (cookies, CORS, and the WebSocket all
-# require this - see ../README.md).
+# Start the Hermes browser dashboard with the built hermes-ui bundle so the UI
+# is served SAME-ORIGIN with the gateway (cookies, CORS, and the WebSocket all
+# require this - see ../README.md). Current Hermes releases reserve `serve`
+# for the headless backend, so `dashboard` is the UI-serving command.
 #
 # This resolves the absolute path to app/dist, verifies the build exists,
-# exports HERMES_WEB_DIST to that path, and execs `hermes serve`.
+# exports HERMES_WEB_DIST to that path, and execs `hermes dashboard --no-open`.
 #
 # Usage:
-#   scripts/serve-on-gateway.sh [extra hermes serve args...]
+#   scripts/serve-on-gateway.sh [extra hermes dashboard args...]
 #
-# Any arguments are passed straight through to `hermes serve`, so bind
+# Any arguments are passed straight through to `hermes dashboard`, so bind
 # host/port flags or anything else the gateway accepts work unchanged, e.g.:
 #   scripts/serve-on-gateway.sh --host 127.0.0.1 --port 9119
 #
@@ -48,7 +49,7 @@ fi
 export HERMES_WEB_DIST="${DIST_DIR}"
 
 echo "HERMES_WEB_DIST=${HERMES_WEB_DIST}" >&2
-echo "Starting: hermes serve $*" >&2
+echo "Starting: hermes dashboard --no-open $*" >&2
 
 # Hand off to the gateway, forwarding any extra args unchanged.
-exec hermes serve "$@"
+exec hermes dashboard --no-open "$@"

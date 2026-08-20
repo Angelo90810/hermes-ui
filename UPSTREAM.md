@@ -65,3 +65,28 @@ The general watermark above is unchanged - only the files below track `v2026.8.1
 **Seams cut into existing files:** composer submit middleware (`runComposerMiddleware` in `app/chat/composer/index.tsx`), contributed `@` completion sources (`hooks/use-at-completions.ts`), contributed palette rows (`app/command-palette/index.tsx`), plugin boot + right panes (`app/desktop-controller.tsx`), sidebar tab strip (`app/chat/sidebar/index.tsx`), `pluginRest` (`hermes.ts`), plugin i18n re-exports (`i18n/index.ts`).
 
 **Still deferred (on top of the PR2 list):** the tree layout engine, `Settings > Plugins` page (plugins can only be toggled via the persisted `hermes.desktop.pluginDecisions.v2` storage key for now), `contrib/runtime-loader.ts`, `store/composer-actions` + composer micro-actions, `blobatarSvg` avatars (not present upstream at this tag either - the plugin's classic-shapes fallback renders).
+
+## Downstream fork maintenance
+
+This fork keeps the community project as its upstream:
+
+```text
+origin:   https://github.com/Angelo90810/hermes-ui.git
+upstream: https://github.com/przbadu/hermes-ui.git
+```
+
+The `main` branch is synchronized automatically every day by
+`.github/workflows/sync-upstream.yml`, and the workflow can also be started
+manually from the GitHub Actions tab. The sync performs a normal merge and
+fails without pushing when upstream conflicts with a downstream fix; it never
+force-resets the fork. Local development can use the same flow explicitly:
+
+```bash
+git fetch upstream main
+git merge --no-edit upstream/main
+git push origin main
+```
+
+The Hermes `dashboard` serving compatibility fix is intentionally kept as a
+small downstream commit. If upstream changes the launcher, resolve that
+specific conflict rather than replacing the extracted renderer wholesale.
