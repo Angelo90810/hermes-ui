@@ -34,6 +34,8 @@ interface SidebarSessionRowProps extends React.ComponentProps<'div'> {
   reorderable?: boolean
   dragging?: boolean
   dragHandleProps?: React.HTMLAttributes<HTMLElement>
+  /** Show the owning named profile on flat cross-profile session lists. */
+  showProfile?: boolean
 }
 
 const AGE_KEY = { day: 'ageDay', hour: 'ageHour', minute: 'ageMin' } as const
@@ -59,6 +61,7 @@ export function SidebarSessionRow({
   reorderable = false,
   dragging = false,
   dragHandleProps,
+  showProfile = false,
   className,
   style,
   ref,
@@ -74,6 +77,7 @@ export function SidebarSessionRow({
   // Telegram thread continued here still reads as Telegram.
   const handoffSource = handoffOriginSource(session.handoff_state, session.handoff_platform)
   const handoffLabel = handoffSource ? (sessionSourceLabel(handoffSource) ?? handoffSource) : null
+  const profileLabel = showProfile && session.profile && session.profile !== 'default' ? session.profile : null
   // Subscribe per-row (the leaf) instead of drilling a set through the list —
   // the atom is tiny and rarely non-empty. True when a clarify prompt in this
   // session is waiting on the user.
@@ -206,6 +210,11 @@ export function SidebarSessionRow({
                 platformName={handoffLabel}
               />
             </Tip>
+          ) : null}
+          {profileLabel ? (
+            <span className="shrink-0 rounded border border-(--ui-stroke-tertiary) px-1.5 py-0.5 font-mono-ui text-[0.625rem] text-(--ui-text-tertiary)">
+              {profileLabel}
+            </span>
           ) : null}
           <SidebarRowLabel className="flex-1 font-normal group-hover:text-foreground group-data-[working=true]:text-foreground/90">
             {title}
